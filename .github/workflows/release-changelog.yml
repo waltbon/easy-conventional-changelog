@@ -1,0 +1,52 @@
+name: Generate changelog for release versions
+on:
+  push:
+    branches: ["releases/**"]
+jobs:
+  changelog: 
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.changelog.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Conventional changelog action
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v3
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          output-file: 'CHANGELOG.md'
+          pre-release: true
+          pre-release-identifier: rc
+
+      - name: create release
+        uses: actions/create-release@v1
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          release_name: ${{ steps.changelog.outputs.tag }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
+          
+  build:
+    runs-on: ubuntu-latest
+    needs: changelog
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Get branch name
+        id: tag-name
+        uses: tj-actions/branch-names@v6
+
+      - name: Running on branch.
+        run: |
+          echo "Running on tag: ${{ steps.tag-name.outputs.current_branch }}"
+
+      - name: Current version from changelog.
+        run: |
+          echo "Running on tag: ${{ needs.changelog.outputs.tag }}"
+
+      - name: Run here your building process.
+        run: |
+          echo "Building process..."
